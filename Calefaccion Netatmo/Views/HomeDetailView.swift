@@ -34,6 +34,11 @@ struct HomeDetailView: View {
             if let schedule = editableSchedule {
                 Section {
                     NavigationLink {
+                        ScheduleWeekView(home: home, schedule: schedule)
+                    } label: {
+                        Label("Ver horario semanal", systemImage: "calendar")
+                    }
+                    NavigationLink {
                         ScheduleEditView(home: home, schedule: schedule, onSaved: onSchedulesChanged)
                     } label: {
                         Label("Editar temperaturas del horario", systemImage: "slider.horizontal.3")
@@ -42,12 +47,14 @@ struct HomeDetailView: View {
                     Text("Cambia la temperatura de cada franja del horario «\(schedule.displayName)». Las horas no se modifican.")
                 }
             }
+            batterySection
             usageSection
         }
         .navigationTitle(home.name)
         .navigationBarTitleDisplayMode(.inline)
         .task {
             model.prime(with: home)
+            await model.loadBatteries(home: home, using: energy)
             if let room = thermostatRoom, usage.points.isEmpty {
                 await usage.load(home: home, room: room, using: energy)
             }
@@ -88,6 +95,32 @@ struct HomeDetailView: View {
         } footer: {
             if schedules.count <= 1 {
                 Text("Solo hay un horario configurado en esta casa.")
+            }
+        }
+    }
+
+    // MARK: - Batería
+
+    @ViewBuilder
+    private var batterySection: some View {
+        if !model.batteries.isEmpty {
+            Section {
+                ForEach(model.batteries) { battery in
+                    HStack {
+                        Text(battery.name)
+                        Spacer()
+                        Text(battery.level.displayName)
+                            .font(.caption)
+                            .foregroundStyle(battery.isLow ? .red : .secondary)
+                        BatteryBarsView(level: battery.level, height: 15)
+                    }
+                }
+            } header: {
+                Text("Batería")
+            } footer: {
+                if model.batteries.contains(where: \.isLow) {
+                    Text("Sustituye las pilas de los dispositivos marcados en rojo.")
+                }
             }
         }
     }

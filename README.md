@@ -11,7 +11,9 @@ Nace de una necesidad concreta: gestionar dos casas a la vez desde una sola pant
 - **Inicio multi-casa** — tarjetas compactas con el estado de todas tus casas a la vez: temperatura actual, objetivo, y si la caldera está encendida. Control vertical `+ / objetivo / −` que evoca el termostato físico.
 - **Modos del hogar** — programación, ausente y antihielo.
 - **Ajuste manual con duración** — fija una temperatura durante un tiempo configurable (o deja que Netatmo decida cuándo expira).
+- **Horario semanal** — vista de la programación completa: una barra de 24 h por día coloreada por zona, desplegable para ver a qué hora empieza cada franja y con qué temperatura. De solo lectura, por ahora.
 - **Editor de horarios** — cambia las temperaturas de las zonas de un horario manteniendo intactas las franjas horarias, con vista previa y confirmación antes de guardar.
+- **Batería** — nivel de cada termostato y válvula con un indicador de barras, y aviso en el inicio cuando alguno se queda bajo.
 - **Consumo** — gráficas (Swift Charts) del histórico de temperatura y del tiempo de caldera encendida por habitación.
 - **Ocultar casas** — quita del inicio las casas que no te interesen.
 
@@ -77,11 +79,11 @@ Calefaccion Netatmo/
 ├── App/            AppModel (contenedor de dependencias) + RootView
 ├── Auth/           AuthManager, OAuthWebSession, TokenStore (Keychain)
 ├── Config/         AppSettings, NetatmoConfig, SharedStore (App Group)
-├── Models/         Home, HomeStatus, RoomMeasure, SchedulePayload, ThermMode…
+├── Models/         Home, HomeStatus, RoomMeasure, SchedulePayload, ScheduleWeek, BatteryStatus, ThermMode…
 ├── Networking/     NetatmoAPIClient, NetatmoEndpoint, APIError
 ├── Services/       EnergyService — fachada de la API Energy
 ├── ViewModels/     Uno por pantalla (@Observable)
-├── Views/          Login, HomeOverview, HomeDetail, ScheduleEdit, Consumption, Settings
+├── Views/          Login, HomeOverview, HomeDetail, ScheduleWeek, ScheduleEdit, Consumption, Settings
 └── Utilities/      Formatters
 
 CalefaccionWidget/
@@ -100,9 +102,11 @@ La extensión de widgets **no** comparte código con la app: lleva su propio cli
 
 `homesdata` · `homestatus` · `setroomthermpoint` · `setthermmode` · `switchhomeschedule` · `synchomeschedule` · `getroommeasure`
 
-### Nota sobre la edición de horarios
+### Nota sobre los horarios
 
-`synchomeschedule` exige reenviar el horario **completo**. `EnergyService.syncScheduleTemperatures` hace un round-trip: recupera el horario, sustituye solo las temperaturas indicadas y lo reenvía con la `timetable` intacta, para no perder las franjas horarias.
+`synchomeschedule` exige reenviar el horario **completo**. `EnergyService.syncScheduleTemperatures` parte del horario que ya trajo `homesdata`, sustituye solo las temperaturas indicadas y lo reenvía con la `timetable` intacta, para no perder las franjas horarias.
+
+Netatmo describe la semana como una lista de cambios: cada entrada de la `timetable` lleva un `m_offset` en minutos desde el lunes a las 00:00 y la zona que pasa a regir hasta el siguiente cambio. `ScheduleWeek.days(from:)` expande esa lista a franjas por día, teniendo en cuenta que la semana es cíclica: lo que hay antes del primer cambio lo cubre la última zona de la lista. Es la base sobre la que se dibuja el horario semanal, y la que hará falta invertir cuando las horas se puedan editar.
 
 ## Seguridad
 

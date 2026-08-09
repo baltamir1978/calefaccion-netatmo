@@ -15,12 +15,20 @@ final class HomeDetailViewModel {
     var isSwitching = false
     var errorMessage: String?
 
+    /// Batería de los módulos de calefacción de la casa (vacío si aún no se ha cargado el estado).
+    private(set) var batteries: [ModuleBattery] = []
+
     private var didInit = false
 
     func prime(with home: Home) {
         guard !didInit else { return }
         didInit = true
         selectedScheduleId = home.selectedSchedule?.id ?? home.schedules?.first?.id
+    }
+
+    func loadBatteries(home: Home, using energy: EnergyService) async {
+        guard let status = try? await energy.fetchHomeStatus(homeId: home.id) else { return }
+        batteries = status.batteries(for: home)
     }
 
     func switchSchedule(to scheduleId: String, home: Home, using energy: EnergyService) async {

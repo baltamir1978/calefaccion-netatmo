@@ -109,6 +109,7 @@ private struct HomeCard: View {
     let home: Home
     @Bindable var model: OverviewViewModel
     @Environment(EnergyService.self) private var energy
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -121,17 +122,29 @@ private struct HomeCard: View {
                 }
             }
             modeControl
+            lowBatteryWarning
             footer
         }
         .padding(16)
-        .background(.background, in: RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.06), radius: 6, y: 2)
+        // En modo oscuro `.background` y `systemGroupedBackground` son ambos negro:
+        // la tarjeta se fundía con la pantalla. El nivel «secondary» sí contrasta
+        // en ambos modos, y el borde marca el límite donde la sombra no se ve.
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .strokeBorder(Color.primary.opacity(colorScheme == .dark ? 0.16 : 0.06),
+                              lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.5 : 0.06), radius: 6, y: 2)
     }
 
-    // Cabecera: nombre + estado de caldera.
+    // Cabecera: nombre + batería del termostato + estado de caldera.
     private var header: some View {
-        HStack {
+        HStack(spacing: 8) {
             Text(home.name).font(.title3.bold())
+            if let battery = model.worstBattery(for: home) {
+                BatteryBarsView(level: battery.level)
+            }
             Spacer()
             boilerPill
         }
@@ -144,7 +157,7 @@ private struct HomeCard: View {
             .foregroundStyle(on ? .white : .secondary)
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
-            .background(on ? Color.orange : Color(.secondarySystemBackground), in: Capsule())
+            .background(on ? Color.orange : Color(.tertiarySystemGroupedBackground), in: Capsule())
     }
 
     // Temperatura actual grande.
@@ -211,6 +224,26 @@ private struct HomeCard: View {
         }
         .pickerStyle(.segmented)
         .disabled(model.isBusy(home))
+    }
+
+    // Aviso de batería baja: solo aparece si algún módulo está en el último escalón.
+    @ViewBuilder
+    private var lowBatteryWarning: some View {
+        let lowModules = model.lowBatteryModules(for: home)
+        if !lowModules.isEmpty {
+            HStack(spacing: 7) {
+                BatteryBarsView(level: .low)
+                Text(lowModules.count == 1
+                     ? "Batería baja en \(lowModules[0].name)"
+                     : "Batería baja en \(lowModules.count) dispositivos")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.red)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(Color.red.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+        }
     }
 
     // Pie: horario activo + enlace a detalle en una sola línea.

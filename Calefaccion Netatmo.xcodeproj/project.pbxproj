@@ -52,6 +52,13 @@
 			);
 			target = 1536A23B3008DB3800FCC650 /* CalefaccionWidgetExtension */;
 		};
+		15A1B2C03100AA0100FCC650 /* Exceptions for "Calefaccion Netatmo" folder in "Calefaccion Netatmo" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Config/NetatmoConfig.example.swift,
+			);
+			target = 156746F23004304C002F0E92 /* Calefaccion Netatmo */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -65,6 +72,9 @@
 		};
 		156746F53004304C002F0E92 /* Calefaccion Netatmo */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				15A1B2C03100AA0100FCC650 /* Exceptions for "Calefaccion Netatmo" folder in "Calefaccion Netatmo" target */,
+			);
 			path = "Calefaccion Netatmo";
 			sourceTree = "<group>";
 		};
@@ -443,6 +453,7 @@
 				DEVELOPMENT_TEAM = JKMR84FU58;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -476,6 +487,7 @@
 				DEVELOPMENT_TEAM = JKMR84FU58;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

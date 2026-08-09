@@ -110,6 +110,22 @@ final class OverviewViewModel {
         home.selectedSchedule?.name
     }
 
+    /// Batería de cada módulo de calefacción de la casa que la reporta (termostatos y válvulas).
+    func batteries(for home: Home) -> [ModuleBattery] {
+        statuses[home.id]?.batteries(for: home) ?? []
+    }
+
+    /// Módulos de la casa con la batería baja.
+    func lowBatteryModules(for home: Home) -> [ModuleBattery] {
+        batteries(for: home).filter(\.isLow)
+    }
+
+    /// Peor nivel de batería de la casa, para el indicador compacto de la tarjeta.
+    /// (`batteries(for:)` ya viene ordenado de menos a más carga.)
+    func worstBattery(for home: Home) -> ModuleBattery? {
+        batteries(for: home).first
+    }
+
     func isBusy(_ home: Home) -> Bool { busyHomeIds.contains(home.id) }
 
     func canControlTemperature(for home: Home) -> Bool { thermostatRoom(for: home) != nil }

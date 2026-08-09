@@ -55,7 +55,7 @@ final class ScheduleEditViewModel {
         for zone in schedule.zones ?? [] where zone.type != 2 && zone.type != 3 {
             let temp = zone.temperature(forRoom: thermostatRoomId) ?? 20
             zoneTemps[zone.id] = temp
-            built.append(EditableZone(id: zone.id, name: Self.name(for: zone), original: temp))
+            built.append(EditableZone(id: zone.id, name: zone.displayName, original: temp))
         }
         zones = built.sorted { $0.id < $1.id }
     }
@@ -116,17 +116,5 @@ final class ScheduleEditViewModel {
 
     private func zoneTemperature(_ schedule: HomeSchedule, type: Int, roomId: String?) -> Double? {
         schedule.zones?.first { $0.type == type }?.temperature(forRoom: roomId)
-    }
-
-    /// Nombre legible de una zona: usa el de Netatmo o uno por tipo.
-    private static func name(for zone: ScheduleZone) -> String {
-        if let name = zone.name, !name.isEmpty { return name }
-        switch zone.type {
-        case 0: return "Confort"
-        case 1: return "Noche"
-        case 4: return "Confort +"
-        case 5: return "Eco"
-        default: return "Zona \(zone.id)"
-        }
     }
 }

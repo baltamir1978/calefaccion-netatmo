@@ -101,6 +101,20 @@ struct ScheduleZone: Decodable, Identifiable, Hashable {
     let type: Int?
     let rooms: [ZoneRoomTemp]?
 
+    /// Nombre legible: el que da Netatmo o uno por tipo de zona.
+    var displayName: String {
+        if let name, !name.isEmpty { return name }
+        switch type {
+        case 0: return "Confort"
+        case 1: return "Noche"
+        case 2: return "Ausente"
+        case 3: return "Antihielo"
+        case 4: return "Confort +"
+        case 5: return "Eco"
+        default: return "Zona \(id)"
+        }
+    }
+
     /// Temperatura fijada para la habitación del termostato en esta zona.
     func temperature(forRoom roomId: String?) -> Double? {
         guard let roomId else { return rooms?.first?.thermSetpointTemperature }
