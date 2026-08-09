@@ -18,5 +18,11 @@ struct Calefaccion_NetatmoApp: App {
                 .environment(model.auth)
                 .environment(model.energy)
         }
+        // Refresco periódico que iOS despierta cuando le viene bien: comprueba
+        // baterías y conexión, y encadena la siguiente ejecución.
+        .backgroundTask(.appRefresh(BackgroundRefresh.taskIdentifier)) {
+            await BackgroundRefresh.run()
+            BackgroundRefresh.schedule()
+        }
     }
 }

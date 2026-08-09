@@ -103,18 +103,25 @@ final class AppSettings {
         didSet { defaults.set(Array(hiddenHomeIds), forKey: Keys.hiddenHomes) }
     }
 
+    /// Avisos de batería baja y termostato sin conexión.
+    var alertsEnabled: Bool {
+        didSet { defaults.set(alertsEnabled, forKey: Keys.alerts) }
+    }
+
     private let store = CredentialsStore()
     private let defaults = UserDefaults.standard
 
     private enum Keys {
         static let duration = "defaultManualDurationMinutes"
         static let hiddenHomes = "hiddenHomeIds"
+        static let alerts = "alertsEnabled"
     }
 
     init() {
         credentials = store.load() ?? .fallback
         defaultManualDurationMinutes = defaults.integer(forKey: Keys.duration)
         hiddenHomeIds = Set(defaults.stringArray(forKey: Keys.hiddenHomes) ?? [])
+        alertsEnabled = defaults.bool(forKey: Keys.alerts)
     }
 
     var hasValidCredentials: Bool { credentials.isComplete }

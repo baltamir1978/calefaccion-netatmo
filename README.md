@@ -10,12 +10,17 @@ Nace de una necesidad concreta: gestionar dos casas a la vez desde una sola pant
 
 - **Inicio multi-casa** — tarjetas compactas con el estado de todas tus casas a la vez: temperatura actual, objetivo, y si la caldera está encendida. Control vertical `+ / objetivo / −` que evoca el termostato físico.
 - **Modos del hogar** — programación, ausente y antihielo.
-- **Ajuste manual con duración** — fija una temperatura durante un tiempo configurable (o deja que Netatmo decida cuándo expira).
+- **Ajuste manual con duración** — fija una temperatura durante un tiempo configurable (o deja que Netatmo decida cuándo expira), con un botón para volver al horario antes de que expire.
+- **Avisos** — notificaciones de batería baja y de termostato sin conexión, apoyadas en un refresco periódico en segundo plano. Se activan en Ajustes.
 - **Horario semanal** — vista de la programación completa: una barra de 24 h por día coloreada por zona, desplegable para ver a qué hora empieza cada franja y con qué temperatura. De solo lectura, por ahora.
 - **Editor de horarios** — cambia las temperaturas de las zonas de un horario manteniendo intactas las franjas horarias, con vista previa y confirmación antes de guardar.
 - **Batería** — nivel de cada termostato y válvula con un indicador de barras, y aviso en el inicio cuando alguno se queda bajo.
 - **Consumo** — gráficas (Swift Charts) del histórico de temperatura y del tiempo de caldera encendida por habitación.
 - **Ocultar casas** — quita del inicio las casas que no te interesen.
+
+**Siri y Atajos**
+
+- **«Oye Siri, tengo frío en Calefacción Netatmo»** — sube el objetivo 1 °C durante dos horas sin abrir la app. Si tienes varias casas, el atajo pregunta cuál; con una sola, va directo.
 
 **Widgets**
 
@@ -80,8 +85,9 @@ Calefaccion Netatmo/
 ├── Auth/           AuthManager, OAuthWebSession, TokenStore (Keychain)
 ├── Config/         AppSettings, NetatmoConfig, SharedStore (App Group)
 ├── Models/         Home, HomeStatus, RoomMeasure, SchedulePayload, ScheduleWeek, BatteryStatus, ThermMode…
+├── Intents/        WarmUpHomeIntent + AppShortcutsProvider (Siri/Atajos)
 ├── Networking/     NetatmoAPIClient, NetatmoEndpoint, APIError
-├── Services/       EnergyService — fachada de la API Energy
+├── Services/       EnergyService (API Energy), AlertsService, BackgroundRefresh
 ├── ViewModels/     Uno por pantalla (@Observable)
 ├── Views/          Login, HomeOverview, HomeDetail, ScheduleWeek, ScheduleEdit, Consumption, Settings
 └── Utilities/      Formatters
@@ -101,6 +107,10 @@ La extensión de widgets **no** comparte código con la app: lleva su propio cli
 ### Endpoints de la API Energy usados
 
 `homesdata` · `homestatus` · `setroomthermpoint` · `setthermmode` · `switchhomeschedule` · `synchomeschedule` · `getroommeasure`
+
+### Nota sobre el Info.plist
+
+El target usa `GENERATE_INFOPLIST_FILE = YES`, pero `BGTaskSchedulerPermittedIdentifiers` y `UIBackgroundModes` no admiten build setting `INFOPLIST_KEY_*`: se declaran en `Calefaccion Netatmo/Info.plist`, que Xcode fusiona con las claves generadas. Como la carpeta es un grupo sincronizado, ese archivo está en las excepciones de membresía del target; si no, se copiaría además como recurso y la build falla con «Multiple commands produce Info.plist».
 
 ### Nota sobre los horarios
 

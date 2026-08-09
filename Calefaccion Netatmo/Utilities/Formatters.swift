@@ -32,6 +32,14 @@ enum Formatters {
         return formatter
     }()
 
+    /// Fin de un ajuste manual: solo la hora si es hoy, con el día si no ("mié 7:00").
+    static func endOfOverride(_ date: Date, now: Date = Date()) -> String {
+        if Calendar.current.isDate(date, inSameDayAs: now) {
+            return date.formatted(date: .omitted, time: .shortened)
+        }
+        return date.formatted(.dateTime.weekday(.abbreviated).hour().minute())
+    }
+
     /// Convierte segundos de caldera encendida en un texto legible (h/min).
     static func duration(seconds: Double) -> String {
         let totalMinutes = Int(seconds / 60)

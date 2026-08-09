@@ -17,6 +17,7 @@ struct SettingsView: View {
 
     @State private var draft = NetatmoCredentials(clientID: "", clientSecret: "", redirectURI: "")
     @State private var savedNotice = false
+    @State private var alertsDenied = false
 
     private let durationOptions: [(minutes: Int, label: String)] = [
         (0, "Usar la de Netatmo"),
@@ -34,6 +35,7 @@ struct SettingsView: View {
                 credentialsSection
                 accountSection
                 preferencesSection
+                alertsSection
                 if !homes.isEmpty { homesSection }
             }
             .navigationTitle("Ajustes")
@@ -124,6 +126,39 @@ struct SettingsView: View {
         } footer: {
             Text("Cuánto se mantiene una temperatura fijada a mano antes de volver a la programación.")
         }
+    }
+
+    // MARK: - Avisos
+
+    private var alertsSection: some View {
+        Section {
+            Toggle("Batería baja y desconexión", isOn: Binding(
+                get: { settings.alertsEnabled },
+                set: { enable in Task { await setAlerts(enabled: enable) } }
+            ))
+        } header: {
+            Text("Avisos")
+        } footer: {
+            if alertsDenied {
+                Text("Las notificaciones están desactivadas para esta app. Actívalas en Ajustes de iOS › Calefacción Netatmo › Notificaciones.")
+                    .foregroundStyle(.red)
+            } else {
+                Text("La app comprueba las casas de vez en cuando en segundo plano y avisa si un termostato se queda sin pilas o sin conexión. iOS decide cada cuánto según el uso.")
+            }
+        }
+    }
+
+    /// Activar los avisos exige permiso del sistema: si se deniega, el interruptor vuelve atrás.
+    private func setAlerts(enabled: Bool) async {
+        guard enabled else {
+            settings.alertsEnabled = false
+            alertsDenied = false
+            return
+        }
+        let granted = await AlertsService.requestAuthorization()
+        settings.alertsEnabled = granted
+        alertsDenied = !granted
+        if granted { BackgroundRefresh.schedule() }
     }
 
     // MARK: - Casas

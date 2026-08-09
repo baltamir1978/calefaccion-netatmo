@@ -35,6 +35,12 @@ final class OverviewViewModel {
 
     private var applyTasks: [String: Task<Void, Never>] = [:]
 
+    /// Última vez que se trajo el estado en vivo, para no recargar al alternar de app.
+    private(set) var lastRefresh: Date?
+
+    /// A partir de esta antigüedad, volver a la app fuerza un refresco.
+    private let staleAfter: TimeInterval = 120
+
     let minTemp = 5.0
     let maxTemp = 30.0
     let step = 0.5
@@ -68,7 +74,15 @@ final class OverviewViewModel {
                 continue
             }
         }
+        lastRefresh = Date()
         updateSharedCache()
+    }
+
+    /// Refresca al volver a primer plano, solo si los datos ya están viejos.
+    func refreshIfStale(using energy: EnergyService) async {
+        guard state == .loaded else { return }
+        if let last = lastRefresh, Date().timeIntervalSince(last) < staleAfter { return }
+        await refreshStatuses(using: energy)
     }
 
     // MARK: - Lecturas derivadas
@@ -124,6 +138,19 @@ final class OverviewViewModel {
     /// (`batteries(for:)` ya viene ordenado de menos a más carga.)
     func worstBattery(for home: Home) -> ModuleBattery? {
         batteries(for: home).first
+    }
+
+    /// `true` si hay una temperatura fijada a mano que expira sola. Netatmo marca
+    /// la habitación como "manual" (o "max") hasta que vuelve a mandar el horario.
+    func hasManualOverride(for home: Home) -> Bool {
+        let mode = roomStatus(for: home)?.thermSetpointMode
+        return mode == "manual" || mode == "max"
+    }
+
+    /// Momento en que expira el ajuste manual, si Netatmo lo indica.
+    func manualOverrideEnd(for home: Home) -> Date? {
+        guard let end = roomStatus(for: home)?.thermSetpointEndTime, end > 0 else { return nil }
+        return Date(timeIntervalSince1970: end)
     }
 
     func isBusy(_ home: Home) -> Bool { busyHomeIds.contains(home.id) }

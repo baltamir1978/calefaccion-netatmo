@@ -14,6 +14,10 @@ struct WarmUpIntent: AppIntent {
         IntentDescription("Sube el objetivo 1 °C por encima de la temperatura actual durante 2 horas.")
     }
 
+    /// Solo lo usa el botón del widget: recibe identificadores ya resueltos, así que
+    /// no tiene sentido ofrecerlo en Atajos (para eso está WarmUpHomeIntent en la app).
+    static var isDiscoverable: Bool { false }
+
     @Parameter(title: "homeId") var homeId: String
     @Parameter(title: "roomId") var roomId: String
 

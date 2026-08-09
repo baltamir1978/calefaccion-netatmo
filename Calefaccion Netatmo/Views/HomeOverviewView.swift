@@ -13,6 +13,7 @@ struct HomeOverviewView: View {
     @Environment(EnergyService.self) private var energy
     @Environment(AuthManager.self) private var auth
     @Environment(AppSettings.self) private var settings
+    @Environment(\.scenePhase) private var scenePhase
     @State private var model = OverviewViewModel()
     @State private var showSettings = false
 
@@ -66,6 +67,17 @@ struct HomeOverviewView: View {
             Text(model.actionError ?? "")
         }
         .task { if model.homes.isEmpty { await model.load(using: energy) } }
+        .onChange(of: scenePhase) { _, phase in
+            switch phase {
+            case .active:
+                Task { await model.refreshIfStale(using: energy) }
+            case .background:
+                // Al salir, deja pedido el próximo refresco en segundo plano.
+                if settings.alertsEnabled { BackgroundRefresh.schedule() }
+            default:
+                break
+            }
+        }
     }
 
     @ViewBuilder
@@ -122,6 +134,7 @@ private struct HomeCard: View {
                 }
             }
             modeControl
+            manualOverrideRow
             lowBatteryWarning
             footer
         }
@@ -224,6 +237,37 @@ private struct HomeCard: View {
         }
         .pickerStyle(.segmented)
         .disabled(model.isBusy(home))
+    }
+
+    // Ajuste manual en curso: permite devolver la casa a su programación sin esperar.
+    @ViewBuilder
+    private var manualOverrideRow: some View {
+        if model.hasManualOverride(for: home) {
+            HStack(spacing: 8) {
+                Image(systemName: "hand.raised.fill")
+                    .foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Temperatura fijada a mano")
+                        .font(.caption.weight(.medium))
+                    if let end = model.manualOverrideEnd(for: home) {
+                        Text("hasta las \(Formatters.endOfOverride(end))")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer(minLength: 0)
+                Button("Volver al horario") {
+                    Task { await model.resumeSchedule(home: home, using: energy) }
+                }
+                .buttonStyle(.bordered)
+                .font(.caption.weight(.semibold))
+                .tint(.orange)
+                .disabled(model.isBusy(home))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(Color.orange.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+        }
     }
 
     // Aviso de batería baja: solo aparece si algún módulo está en el último escalón.
