@@ -121,22 +121,106 @@ final class EnergyService {
             SyncTimetableEntry(zoneId: $0.zoneId, mOffset: $0.mOffset ?? 0)
         }
 
-        let encoder = JSONEncoder()
-        encoder.keyEncodingStrategy = .convertToSnakeCase
-        let zonesJSON = String(data: try encoder.encode(zones), encoding: .utf8) ?? "[]"
-        let timetableJSON = String(data: try encoder.encode(timetable), encoding: .utf8) ?? "[]"
-
-        var form: [String: String] = [
-            "home_id": homeId,
-            "schedule_id": schedule.id,
-            "zones": zonesJSON,
-            "timetable": timetableJSON,
-            "away_temp": String(format: "%.1f", awayTemp),
-            "hg_temp": String(format: "%.1f", hgTemp),
-        ]
+        var form = try Self.scheduleForm(homeId: homeId, zones: zones, timetable: timetable,
+                                         awayTemp: awayTemp, hgTemp: hgTemp)
+        form["schedule_id"] = schedule.id
         if let name = schedule.name { form["name"] = name }
 
         let _: APIStatusResponse = try await client.post(NetatmoEndpoint.syncHomeSchedule, form: form)
+    }
+
+    // MARK: - Gestión de horarios
+
+    /// Crea un horario nuevo a partir de la plantilla estándar (confort/noche/eco).
+    /// Las habitaciones de calefacción arrancan todas con las mismas temperaturas.
+    /// - Returns: identificador del horario creado, si Netatmo lo devuelve.
+    @discardableResult
+    func createSchedule(home: Home, name: String) async throws -> String? {
+        let roomIds = home.heatingRooms.map(\.id)
+        return try await createSchedule(
+            homeId: home.id,
+            name: name,
+            zones: ScheduleTemplate.zones(roomIds: roomIds),
+            timetable: ScheduleTemplate.timetable(),
+            awayTemp: ScheduleTemplate.awayTemp,
+            hgTemp: ScheduleTemplate.frostGuardTemp
+        )
+    }
+
+    /// Copia un horario existente con otro nombre, horas y temperaturas incluidas.
+    @discardableResult
+    func duplicateSchedule(homeId: String, schedule: HomeSchedule, name: String) async throws -> String? {
+        let zones: [SyncZone] = (schedule.zones ?? []).map { zone in
+            SyncZone(id: zone.id, type: zone.type ?? 0,
+                     rooms: (zone.rooms ?? []).map {
+                         SyncRoom(id: $0.id, thermSetpointTemperature: $0.thermSetpointTemperature ?? 0)
+                     })
+        }
+        let timetable: [SyncTimetableEntry] = (schedule.timetable ?? []).map {
+            SyncTimetableEntry(zoneId: $0.zoneId, mOffset: $0.mOffset ?? 0)
+        }
+        return try await createSchedule(
+            homeId: homeId,
+            name: name,
+            zones: zones,
+            timetable: timetable,
+            awayTemp: schedule.awayTemp ?? ScheduleTemplate.awayTemp,
+            hgTemp: schedule.hgTemp ?? ScheduleTemplate.frostGuardTemp
+        )
+    }
+
+    /// Cambia el nombre de un horario sin tocar sus franjas.
+    func renameSchedule(homeId: String, scheduleId: String, name: String) async throws {
+        let form: [String: String] = [
+            "home_id": homeId,
+            "schedule_id": scheduleId,
+            "name": name,
+        ]
+        let _: APIStatusResponse = try await client.post(NetatmoEndpoint.renameHomeSchedule, form: form)
+    }
+
+    /// Borra un horario. Netatmo rechaza borrar el que está activo.
+    func deleteSchedule(homeId: String, scheduleId: String) async throws {
+        let form: [String: String] = [
+            "home_id": homeId,
+            "schedule_id": scheduleId,
+        ]
+        let _: APIStatusResponse = try await client.post(NetatmoEndpoint.deleteHomeSchedule, form: form)
+    }
+
+    private func createSchedule(
+        homeId: String,
+        name: String,
+        zones: [SyncZone],
+        timetable: [SyncTimetableEntry],
+        awayTemp: Double,
+        hgTemp: Double
+    ) async throws -> String? {
+        var form = try Self.scheduleForm(homeId: homeId, zones: zones, timetable: timetable,
+                                         awayTemp: awayTemp, hgTemp: hgTemp)
+        form["name"] = name
+        let response: CreateScheduleResponse = try await client.post(
+            NetatmoEndpoint.createNewHomeSchedule, form: form)
+        return response.body?.scheduleId
+    }
+
+    /// Campos comunes de `synchomeschedule` y `createnewhomeschedule`.
+    private static func scheduleForm(
+        homeId: String,
+        zones: [SyncZone],
+        timetable: [SyncTimetableEntry],
+        awayTemp: Double,
+        hgTemp: Double
+    ) throws -> [String: String] {
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        return [
+            "home_id": homeId,
+            "zones": String(data: try encoder.encode(zones), encoding: .utf8) ?? "[]",
+            "timetable": String(data: try encoder.encode(timetable), encoding: .utf8) ?? "[]",
+            "away_temp": String(format: "%.1f", awayTemp),
+            "hg_temp": String(format: "%.1f", hgTemp),
+        ]
     }
 
     // MARK: - Consumo / uso

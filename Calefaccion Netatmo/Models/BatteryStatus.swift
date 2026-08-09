@@ -23,10 +23,10 @@ enum BatteryLevel: Int, Comparable, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .low: "Batería baja"
-        case .medium: "Batería media"
-        case .high: "Batería alta"
-        case .full: "Batería llena"
+        case .low: String(localized: "Batería baja")
+        case .medium: String(localized: "Batería media")
+        case .high: String(localized: "Batería alta")
+        case .full: String(localized: "Batería llena")
         }
     }
 
@@ -101,6 +101,6 @@ extension Module {
     func displayName(in home: Home) -> String {
         if let name, !name.isEmpty { return name }
         if let roomId, let room = home.rooms.first(where: { $0.id == roomId }) { return room.name }
-        return type == "NRV" ? "Válvula" : "Termostato"
+        return type == "NRV" ? String(localized: "Válvula") : String(localized: "Termostato")
     }
 }

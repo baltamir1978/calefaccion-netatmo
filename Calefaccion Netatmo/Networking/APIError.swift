@@ -18,23 +18,23 @@ enum APIError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notConfigured:
-            return "Faltan las credenciales de Netatmo. Rellena NetatmoConfig con tu client_id y client_secret."
+            return String(localized: "Faltan las credenciales de Netatmo. Rellena NetatmoConfig con tu client_id y client_secret.")
         case .notAuthenticated:
-            return "No has iniciado sesión en Netatmo."
+            return String(localized: "No has iniciado sesión en Netatmo.")
         case .invalidResponse:
-            return "Respuesta inválida del servidor."
+            return String(localized: "Respuesta inválida del servidor.")
         case let .httpError(status, code, message):
-            let detail = message ?? "sin detalle"
-            if let code { return "Error \(status) (código \(code)): \(detail)" }
-            return "Error HTTP \(status): \(detail)"
+            let detail = message ?? String(localized: "sin detalle")
+            if let code { return String(localized: "Error \(status) (código \(code)): \(detail)") }
+            return String(localized: "Error HTTP \(status): \(detail)")
         case let .decoding(error):
-            return "No se pudieron interpretar los datos: \(error.localizedDescription)"
+            return String(localized: "No se pudieron interpretar los datos: \(error.localizedDescription)")
         case let .network(error):
-            return "Error de red: \(error.localizedDescription)"
+            return String(localized: "Error de red: \(error.localizedDescription)")
         case let .oauthFailed(reason):
-            return "Fallo de autenticación: \(reason)"
+            return String(localized: "Fallo de autenticación: \(reason)")
         case .tokenRefreshFailed:
-            return "No se pudo renovar la sesión. Vuelve a iniciar sesión."
+            return String(localized: "No se pudo renovar la sesión. Vuelve a iniciar sesión.")
         }
     }
 

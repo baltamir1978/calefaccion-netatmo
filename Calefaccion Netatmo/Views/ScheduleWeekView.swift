@@ -68,6 +68,11 @@ struct ScheduleWeekView: View {
                     .frame(width: 34, alignment: .leading)
                 bar(for: day)
             }
+            // La barra es puramente visual: VoiceOver anuncia el día y el resumen,
+            // y el detalle hora a hora vive en las filas que salen al desplegar.
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(isToday(day) ? Text("\(day.name), hoy") : Text(day.name))
+            .accessibilityValue(Text("\(day.slots.count) franjas"))
         }
     }
 
@@ -79,7 +84,7 @@ struct ScheduleWeekView: View {
             Text(Formatters.timeOfDay(minutes: slot.start))
                 .monospacedDigit()
                 .frame(width: 62, alignment: .leading)
-            Text(zonesById[slot.zoneId]?.displayName ?? "Zona \(slot.zoneId)")
+            Text(zoneName(slot.zoneId))
                 .lineLimit(1)
             Spacer(minLength: 4)
             Text(Formatters.temperature(temperature(forZone: slot.zoneId)))
@@ -87,6 +92,9 @@ struct ScheduleWeekView: View {
                 .foregroundStyle(.secondary)
         }
         .font(.subheadline)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Desde las \(Formatters.timeOfDay(minutes: slot.start)), \(zoneName(slot.zoneId))"))
+        .accessibilityValue(Text("\(Formatters.temperatureValue(temperature(forZone: slot.zoneId))) grados"))
     }
 
     // MARK: - Barra de 24 h
@@ -132,12 +140,15 @@ struct ScheduleWeekView: View {
                     RoundedRectangle(cornerRadius: 3)
                         .fill(color(forZone: zoneId))
                         .frame(width: 14, height: 14)
-                    Text(zonesById[zoneId]?.displayName ?? "Zona \(zoneId)")
+                    Text(zoneName(zoneId))
                     Spacer()
                     Text(Formatters.temperature(temperature(forZone: zoneId)))
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text(zoneName(zoneId)))
+                .accessibilityValue(Text("\(Formatters.temperatureValue(temperature(forZone: zoneId))) grados"))
             }
         }
     }
@@ -155,6 +166,11 @@ struct ScheduleWeekView: View {
 
     private func temperature(forZone zoneId: Int) -> Double? {
         zonesById[zoneId]?.temperature(forRoom: thermostatRoomId)
+    }
+
+    /// Nombre de la zona, o uno genérico si Netatmo no la describe.
+    private func zoneName(_ zoneId: Int) -> String {
+        zonesById[zoneId]?.displayName ?? String(localized: "Zona \(zoneId)")
     }
 
     /// Color estable por tipo de zona, para que la barra y la leyenda coincidan.

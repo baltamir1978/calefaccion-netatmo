@@ -19,9 +19,14 @@ struct WarmUpEntry: TimelineEntry {
     let roomId: String?
     let targetTemp: Double?
     let boilerOn: Bool
+    /// Hay varias casas y el widget todavía no tiene una elegida.
+    var needsChoice = false
 
     static let unconfigured = WarmUpEntry(date: .now, configured: false, homeName: "—",
                                           homeId: "", roomId: nil, targetTemp: nil, boilerOn: false)
+    static let needsHomeChoice = WarmUpEntry(date: .now, configured: false, homeName: "—",
+                                             homeId: "", roomId: nil, targetTemp: nil,
+                                             boilerOn: false, needsChoice: true)
 }
 
 // MARK: - Provider
@@ -41,12 +46,13 @@ struct WarmUpProvider: AppIntentTimelineProvider {
     }
 
     private func entry(for configuration: SelectHomeIntent) -> WarmUpEntry {
-        let cache = WidgetCache.load()
-        let home: WCachedHome? = configuration.home.map {
-            WCachedHome(id: $0.id, name: $0.name, thermostatRoomId: $0.thermostatRoomId)
-        } ?? cache.homes.first
-        guard let home else { return .unconfigured }
-        let snapshot = cache.snapshots[home.id]
+        let home: WCachedHome
+        switch ResolvedHome.resolve(configured: configuration.home) {
+        case .home(let resolved): home = resolved
+        case .noCache: return .unconfigured
+        case .needsChoice: return .needsHomeChoice
+        }
+        let snapshot = WidgetCache.load().snapshots[home.id]
         return WarmUpEntry(date: .now, configured: true, homeName: home.name, homeId: home.id,
                            roomId: home.thermostatRoomId, targetTemp: snapshot?.targetTemp,
                            boilerOn: snapshot?.boilerOn ?? false)
@@ -66,6 +72,8 @@ struct WarmUpWidgetView: View {
                 content(roomId: roomId)
             } else if entry.configured {
                 note("Esta casa no permite ajuste de temperatura.")
+            } else if entry.needsChoice {
+                note("Mantén pulsado el widget y elige la casa.")
             } else {
                 note("Abre la app y elige una casa.")
             }
@@ -91,6 +99,8 @@ struct WarmUpWidgetView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(.orange)
+            .accessibilityLabel(Text("Tengo frío en \(entry.homeName)"))
+            .accessibilityHint(Text("Sube el objetivo un grado durante dos horas"))
 
             Text("+1 °C durante 2 h")
                 .font(.caption2)
@@ -99,7 +109,7 @@ struct WarmUpWidgetView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private func note(_ text: String) -> some View {
+    private func note(_ text: LocalizedStringKey) -> some View {
         VStack(spacing: 6) {
             Image(systemName: "flame").font(.title2)
             Text(text).font(.caption).multilineTextAlignment(.center)

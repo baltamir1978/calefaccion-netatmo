@@ -11,5 +11,7 @@ struct CalefaccionWidgetBundle: WidgetBundle {
     var body: some Widget {
         CalefaccionWidget()
         WarmUpWidget()
+        WarmUpControlWidget()
+        AwayModeControlWidget()
     }
 }

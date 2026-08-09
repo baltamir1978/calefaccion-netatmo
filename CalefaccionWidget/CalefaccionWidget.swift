@@ -18,11 +18,16 @@ struct StatusEntry: TimelineEntry {
     let currentTemp: Double?
     let targetTemp: Double?
     let boilerOn: Bool
+    /// Hay varias casas y el widget todavía no tiene una elegida.
+    var needsChoice = false
 
     static let placeholder = StatusEntry(date: .now, configured: true, homeName: "Casa",
                                          currentTemp: 21, targetTemp: 20, boilerOn: false)
     static let unconfigured = StatusEntry(date: .now, configured: false, homeName: "—",
                                           currentTemp: nil, targetTemp: nil, boilerOn: false)
+    static let needsHomeChoice = StatusEntry(date: .now, configured: false, homeName: "—",
+                                             currentTemp: nil, targetTemp: nil, boilerOn: false,
+                                             needsChoice: true)
 }
 
 // MARK: - Provider
@@ -39,15 +44,13 @@ struct StatusProvider: AppIntentTimelineProvider {
         return Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(15 * 60)))
     }
 
-    private func resolvedHome(_ configuration: SelectHomeIntent) -> WCachedHome? {
-        if let home = configuration.home {
-            return WCachedHome(id: home.id, name: home.name, thermostatRoomId: home.thermostatRoomId)
-        }
-        return WidgetCache.load().homes.first
-    }
-
     private func entry(for configuration: SelectHomeIntent, allowNetwork: Bool) async -> StatusEntry {
-        guard let home = resolvedHome(configuration) else { return .unconfigured }
+        let home: WCachedHome
+        switch ResolvedHome.resolve(configured: configuration.home) {
+        case .home(let resolved): home = resolved
+        case .noCache: return .unconfigured
+        case .needsChoice: return .needsHomeChoice
+        }
         let snapshot = WidgetCache.load().snapshots[home.id]
 
         if allowNetwork,
@@ -55,6 +58,7 @@ struct StatusProvider: AppIntentTimelineProvider {
             return StatusEntry(date: .now, configured: true, homeName: home.name,
                                currentTemp: live.currentTemp, targetTemp: live.targetTemp, boilerOn: live.boilerOn)
         }
+        // Sin red: se pinta lo último que dejó la app en el App Group.
         return StatusEntry(date: .now, configured: true, homeName: home.name,
                            currentTemp: snapshot?.currentTemp, targetTemp: snapshot?.targetTemp,
                            boilerOn: snapshot?.boilerOn ?? false)
@@ -119,15 +123,52 @@ struct StatusWidgetView: View {
 
     var body: some View {
         Group {
-            if !entry.configured {
-                unconfigured
-            } else if family == .systemMedium {
-                medium
-            } else {
-                small
+            switch family {
+            case .accessoryCircular:
+                accessoryCircular
+            case .accessoryRectangular:
+                accessoryRectangular
+            case .accessoryInline:
+                accessoryInline
+            default:
+                homeScreen
             }
         }
-        .containerBackground(for: .widget) { background }
+        .containerBackground(for: .widget) { widgetBackground }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilitySummary)
+    }
+
+    /// Widgets de la pantalla de inicio (fondo propio, color).
+    @ViewBuilder
+    private var homeScreen: some View {
+        if !entry.configured {
+            unconfigured
+        } else if family == .systemMedium {
+            medium
+        } else {
+            small
+        }
+    }
+
+    /// En la pantalla de bloqueo el sistema pinta todo en monocromo: sin fondo de color.
+    private var isAccessory: Bool {
+        family == .accessoryCircular || family == .accessoryRectangular || family == .accessoryInline
+    }
+
+    // Descripción única para VoiceOver, que si no leería el anillo trozo a trozo.
+    private var accessibilitySummary: Text {
+        guard entry.configured else {
+            return entry.needsChoice
+                ? Text("Sin casa elegida. Mantén pulsado el widget para elegirla.")
+                : Text("Sin casa elegida. Abre la app y elige una.")
+        }
+        let current = entry.currentTemp.map { Text("\(TempFormat.spoken($0)) grados") }
+            ?? Text("temperatura desconocida")
+        let target = entry.targetTemp.map { Text("objetivo \(TempFormat.spoken($0)) grados") }
+            ?? Text("sin objetivo")
+        let boiler = entry.boilerOn ? Text("caldera encendida") : Text("caldera apagada")
+        return Text("\(entry.homeName): \(current), \(target), \(boiler)")
     }
 
     // Pequeño: anillo protagonista.
@@ -183,16 +224,76 @@ struct StatusWidgetView: View {
 
     private var unconfigured: some View {
         VStack(spacing: 6) {
-            Image(systemName: "house.slash").font(.title2)
-            Text("Abre la app y elige una casa").font(.caption).multilineTextAlignment(.center)
+            Image(systemName: entry.needsChoice ? "house.and.flag" : "house.slash").font(.title2)
+            if entry.needsChoice {
+                Text("Mantén pulsado el widget y elige la casa")
+                    .font(.caption).multilineTextAlignment(.center)
+            } else {
+                Text("Abre la app y elige una casa")
+                    .font(.caption).multilineTextAlignment(.center)
+            }
         }
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    // MARK: - Pantalla de bloqueo
+
+    /// Circular: aguja de temperatura sobre el rango habitual de una casa.
+    private var accessoryCircular: some View {
+        Gauge(value: gaugeFraction) {
+            Image(systemName: entry.boilerOn ? "flame.fill" : "thermometer.medium")
+        } currentValueLabel: {
+            Text(TempFormat.short(entry.currentTemp))
+                .minimumScaleFactor(0.6)
+        }
+        .gaugeStyle(.accessoryCircular)
+        .widgetAccentable()
+    }
+
+    /// Rectangular: casa, temperatura actual y objetivo, y estado de la caldera.
+    private var accessoryRectangular: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            HStack(spacing: 3) {
+                Image(systemName: entry.boilerOn ? "flame.fill" : "house.fill")
+                Text(entry.homeName).lineLimit(1)
+            }
+            .font(.caption2)
+            .widgetAccentable()
+
+            Text(TempFormat.full(entry.currentTemp))
+                .font(.title3.weight(.semibold))
+                .monospacedDigit()
+
+            Text("Objetivo \(TempFormat.full(entry.targetTemp))")
+                .font(.caption2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// En línea: cabe una sola frase junto al reloj.
+    private var accessoryInline: some View {
+        Label {
+            Text("\(TempFormat.full(entry.currentTemp)) → \(TempFormat.full(entry.targetTemp))")
+        } icon: {
+            Image(systemName: entry.boilerOn ? "flame.fill" : "thermometer.medium")
+        }
+    }
+
+    /// Posición dentro del rango 10–30 °C, que es donde se mueve una casa.
+    private var gaugeFraction: Double {
+        guard let current = entry.currentTemp else { return 0 }
+        return min(1, max(0, (current - 10) / 20))
+    }
+
     @ViewBuilder
-    private var background: some View {
-        if entry.boilerOn {
+    private var widgetBackground: some View {
+        if family == .accessoryCircular {
+            AccessoryWidgetBackground()
+        } else if isAccessory {
+            // Rectangular e inline se dibujan directamente sobre el fondo de bloqueo.
+            Color.clear
+        } else if entry.boilerOn {
             LinearGradient(colors: [Color(red: 1.0, green: 0.66, blue: 0.28),
                                     Color(red: 0.97, green: 0.40, blue: 0.09)],
                            startPoint: .topLeading, endPoint: .bottomTrailing)
@@ -211,6 +312,10 @@ enum TempFormat {
         guard let value else { return "--" }
         return String(format: "%.1f°", value)
     }
+    /// Sin el símbolo de grado: VoiceOver lo lee mejor con la palabra completa.
+    static func spoken(_ value: Double) -> String {
+        String(format: "%.1f", value)
+    }
 }
 
 // MARK: - Widget
@@ -224,7 +329,8 @@ struct CalefaccionWidget: Widget {
         }
         .configurationDisplayName("Estado calefacción")
         .description("Temperatura actual y objetivo de una casa. Se pone naranja si la caldera está encendida.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .supportedFamilies([.systemSmall, .systemMedium,
+                            .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }
 

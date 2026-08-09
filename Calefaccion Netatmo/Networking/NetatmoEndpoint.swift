@@ -19,5 +19,8 @@ enum NetatmoEndpoint {
     static let setThermMode = "/api/setthermmode"
     static let switchHomeSchedule = "/api/switchhomeschedule"
     static let syncHomeSchedule = "/api/synchomeschedule"
+    static let createNewHomeSchedule = "/api/createnewhomeschedule"
+    static let renameHomeSchedule = "/api/renamehomeschedule"
+    static let deleteHomeSchedule = "/api/deletehomeschedule"
     static let getRoomMeasure = "/api/getroommeasure"
 }

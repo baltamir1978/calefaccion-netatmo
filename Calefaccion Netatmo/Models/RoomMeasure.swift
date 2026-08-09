@@ -38,11 +38,11 @@ enum MeasureScale: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .oneHour: return "1 hora"
-        case .threeHours: return "3 horas"
-        case .oneDay: return "Día"
-        case .oneWeek: return "Semana"
-        case .oneMonth: return "Mes"
+        case .oneHour: return String(localized: "1 hora", comment: "Escala del gráfico")
+        case .threeHours: return String(localized: "3 horas", comment: "Escala del gráfico")
+        case .oneDay: return String(localized: "Día", comment: "Escala del gráfico")
+        case .oneWeek: return String(localized: "Semana", comment: "Escala del gráfico")
+        case .oneMonth: return String(localized: "Mes", comment: "Escala del gráfico")
         }
     }
 }

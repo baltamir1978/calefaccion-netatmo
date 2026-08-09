@@ -75,6 +75,7 @@ struct ConsumptionView: View {
 
     @ViewBuilder
     private var measureChart: some View {
+        // Cada barra o punto se anuncia por separado, con su fecha y su valor.
         Chart(model.points) { point in
             if model.measureType == .sumBoilerOn {
                 BarMark(
@@ -82,6 +83,8 @@ struct ConsumptionView: View {
                     y: .value("Minutos", point.value / 60)
                 )
                 .foregroundStyle(.orange)
+                .accessibilityLabel(point.date.formatted(date: .abbreviated, time: .shortened))
+                .accessibilityValue(Text("\(Formatters.duration(seconds: point.value)) de caldera"))
             } else {
                 LineMark(
                     x: .value("Fecha", point.date),
@@ -89,6 +92,8 @@ struct ConsumptionView: View {
                 )
                 .foregroundStyle(.orange)
                 .interpolationMethod(.catmullRom)
+                .accessibilityLabel(point.date.formatted(date: .abbreviated, time: .shortened))
+                .accessibilityValue(Text("\(Formatters.temperatureValue(point.value)) grados"))
             }
         }
         .chartYAxisLabel(model.measureType == .sumBoilerOn ? "min" : "°C")

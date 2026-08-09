@@ -12,6 +12,14 @@ enum Formatters {
         return String(format: "%.1f°", value)
     }
 
+    /// Solo el número, con el decimal en el formato del idioma ("21,5" / "21.5").
+    /// Se usa en los textos de VoiceOver, donde el símbolo «°» se lee mal y conviene
+    /// escribir la palabra «grados» aparte.
+    static func temperatureValue(_ value: Double?) -> String {
+        guard let value else { return "—" }
+        return value.formatted(.number.precision(.fractionLength(1)))
+    }
+
     /// Hora del día a partir de los minutos desde medianoche ("7:00", "11:30 PM"…),
     /// en el formato de 12/24 h que tenga configurado el sistema.
     static func timeOfDay(minutes: Int) -> String {
@@ -45,7 +53,7 @@ enum Formatters {
         let totalMinutes = Int(seconds / 60)
         let hours = totalMinutes / 60
         let minutes = totalMinutes % 60
-        if hours > 0 { return "\(hours) h \(minutes) min" }
-        return "\(minutes) min"
+        if hours > 0 { return String(localized: "\(hours) h \(minutes) min") }
+        return String(localized: "\(minutes) min")
     }
 }

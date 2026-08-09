@@ -92,7 +92,7 @@ struct HomeSchedule: Decodable, Identifiable, Hashable {
     let awayTemp: Double?
     let hgTemp: Double?
 
-    var displayName: String { name ?? "Horario" }
+    var displayName: String { name ?? String(localized: "Horario") }
 }
 
 struct ScheduleZone: Decodable, Identifiable, Hashable {
@@ -105,13 +105,13 @@ struct ScheduleZone: Decodable, Identifiable, Hashable {
     var displayName: String {
         if let name, !name.isEmpty { return name }
         switch type {
-        case 0: return "Confort"
-        case 1: return "Noche"
-        case 2: return "Ausente"
-        case 3: return "Antihielo"
-        case 4: return "Confort +"
-        case 5: return "Eco"
-        default: return "Zona \(id)"
+        case 0: return String(localized: "Confort", comment: "Zona del horario")
+        case 1: return String(localized: "Noche", comment: "Zona del horario")
+        case 2: return String(localized: "Ausente", comment: "Zona del horario")
+        case 3: return String(localized: "Antihielo", comment: "Zona del horario")
+        case 4: return String(localized: "Confort +", comment: "Zona del horario")
+        case 5: return String(localized: "Eco", comment: "Zona del horario")
+        default: return String(localized: "Zona \(id)", comment: "Zona del horario sin nombre")
         }
     }
 

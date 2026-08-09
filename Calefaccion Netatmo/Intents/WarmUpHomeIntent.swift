@@ -39,8 +39,11 @@ struct HomeEntityQuery: EntityQuery {
         cachedHomes()
     }
 
+    /// Con más de una casa no se preselecciona ninguna: que Siri pregunte es
+    /// mejor que calentar la casa equivocada.
     func defaultResult() async -> HomeEntity? {
-        cachedHomes().first
+        let homes = cachedHomes()
+        return homes.count == 1 ? homes.first : nil
     }
 
     private func cachedHomes() -> [HomeEntity] {
@@ -61,7 +64,8 @@ struct WarmUpHomeIntent: AppIntent {
     /// Se resuelve en segundo plano: no hace falta traer la app a pantalla.
     static var openAppWhenRun: Bool { false }
 
-    @Parameter(title: "Casa") var home: HomeEntity?
+    @Parameter(title: "Casa", requestValueDialog: "¿En qué casa tienes frío?")
+    var home: HomeEntity?
 
     static var parameterSummary: some ParameterSummary {
         Summary("Tengo frío en \(\.$home)")
@@ -114,7 +118,13 @@ struct WarmUpHomeIntent: AppIntent {
         let candidates = homes.filter { !settings.hiddenHomeIds.contains($0.id) }
         let match = home.flatMap { selected in homes.first { $0.id == selected.id } }
             ?? (candidates.count == 1 ? candidates.first : nil)
-        guard let match else { throw WarmUpError.noHome }
+        guard let match else {
+            // Varias casas y ninguna elegida: Siri pregunta en vez de dar por hecho.
+            guard candidates.isEmpty else {
+                throw $home.needsValueError("¿En qué casa tienes frío?")
+            }
+            throw WarmUpError.noHome
+        }
         guard let roomId = match.heatingRooms.first?.id else { throw WarmUpError.noThermostat }
         return (match.id, match.name, roomId)
     }
@@ -138,12 +148,16 @@ enum WarmUpError: Error, CustomLocalizedStringResourceConvertible {
 
 // MARK: - Atajo con frase para Siri
 
+/// Las frases con `\(\.$home)` generan una variante por casa, así que con dos
+/// casas se puede decir «tengo frío en La Granja» sin pasar por el selector.
 struct CalefaccionShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
             intent: WarmUpHomeIntent(),
             phrases: [
                 "Tengo frío en \(.applicationName)",
+                "Tengo frío en \(\.$home) con \(.applicationName)",
+                "Sube la calefacción de \(\.$home) con \(.applicationName)",
                 "Sube la calefacción en \(.applicationName)",
                 "Dame calor en \(.applicationName)",
             ],

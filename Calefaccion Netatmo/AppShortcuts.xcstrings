@@ -1,0 +1,46 @@
+{
+  "sourceLanguage" : "es",
+  "strings" : {
+    "Tengo frío en ${applicationName}" : {
+      "localizations" : {
+        "en" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "I’m cold in ${applicationName}",
+              "I’m cold in ${home} with ${applicationName}",
+              "Turn up the heating in ${home} with ${applicationName}",
+              "Turn up the heating in ${applicationName}",
+              "Warm me up in ${applicationName}"
+            ]
+          }
+        },
+        "es" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Tengo frío en ${applicationName}",
+              "Tengo frío en ${home} con ${applicationName}",
+              "Sube la calefacción de ${home} con ${applicationName}",
+              "Sube la calefacción en ${applicationName}",
+              "Dame calor en ${applicationName}"
+            ]
+          }
+        },
+        "fr" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "J’ai froid dans ${applicationName}",
+              "J’ai froid à ${home} avec ${applicationName}",
+              "Monte le chauffage de ${home} avec ${applicationName}",
+              "Monte le chauffage dans ${applicationName}",
+              "Réchauffe-moi dans ${applicationName}"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

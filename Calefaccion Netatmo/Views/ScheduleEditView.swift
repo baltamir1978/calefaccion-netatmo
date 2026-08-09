@@ -71,6 +71,7 @@ struct ScheduleEditView: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.orange)
+            .accessibilityLabel(Text("Bajar \(title)"))
 
             Text(Formatters.temperature(value))
                 .font(.body.weight(.semibold))
@@ -82,6 +83,18 @@ struct ScheduleEditView: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.orange)
+            .accessibilityLabel(Text("Subir \(title)"))
+        }
+        // Un solo control ajustable: con VoiceOver se cambia deslizando arriba/abajo.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(title))
+        .accessibilityValue(Text("\(Formatters.temperatureValue(value)) grados"))
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment: onPlus()
+            case .decrement: onMinus()
+            @unknown default: break
+            }
         }
     }
 
@@ -99,6 +112,9 @@ struct ScheduleEditView: View {
                                 .foregroundStyle(.orange)
                                 .monospacedDigit()
                         }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(Text(change.label))
+                        .accessibilityValue(Text("de \(Formatters.temperatureValue(change.from)) a \(Formatters.temperatureValue(change.to)) grados"))
                     }
                 }
                 Section {

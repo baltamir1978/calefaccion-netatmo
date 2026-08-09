@@ -17,9 +17,9 @@ enum ThermMode: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .schedule: return "Programación"
-        case .away: return "Ausente"
-        case .hg: return "Antihielo"
+        case .schedule: return String(localized: "Programación", comment: "Modo del hogar")
+        case .away: return String(localized: "Ausente", comment: "Modo del hogar")
+        case .hg: return String(localized: "Antihielo", comment: "Modo del hogar (hors gel)")
         }
     }
 

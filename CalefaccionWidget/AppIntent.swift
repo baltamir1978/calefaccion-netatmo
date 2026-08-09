@@ -26,12 +26,39 @@ struct HomeQuery: EntityQuery {
 
     func suggestedEntities() async throws -> [HomeEntity] { allHomes() }
 
-    func defaultResult() async -> HomeEntity? { allHomes().first }
+    /// Con varias casas no se preselecciona ninguna: elegir por el usuario es lo
+    /// único seguro cuando el widget puede acabar calentando la casa equivocada.
+    func defaultResult() async -> HomeEntity? {
+        let homes = allHomes()
+        return homes.count == 1 ? homes.first : nil
+    }
 
     private func allHomes() -> [HomeEntity] {
         WidgetCache.load().homes.map {
             HomeEntity(id: $0.id, name: $0.name, thermostatRoomId: $0.thermostatRoomId)
         }
+    }
+}
+
+/// Casa que muestra un widget o control, y por qué no hay ninguna si falta.
+enum ResolvedHome {
+    case home(WCachedHome)
+    /// No hay sesión ni caché: hay que abrir la app.
+    case noCache
+    /// Hay varias casas y el widget aún no tiene una elegida.
+    case needsChoice
+
+    /// Regla común a todos los widgets: la configurada; si no hay, la única que
+    /// exista; y si hay más de una, se pide elegir en vez de acertar por sorteo.
+    static func resolve(configured: HomeEntity?) -> ResolvedHome {
+        if let configured {
+            return .home(WCachedHome(id: configured.id, name: configured.name,
+                                     thermostatRoomId: configured.thermostatRoomId))
+        }
+        let homes = WidgetCache.load().homes
+        if homes.isEmpty { return .noCache }
+        if homes.count == 1, let only = homes.first { return .home(only) }
+        return .needsChoice
     }
 }
 

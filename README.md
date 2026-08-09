@@ -14,18 +14,24 @@ Nace de una necesidad concreta: gestionar dos casas a la vez desde una sola pant
 - **Avisos** — notificaciones de batería baja y de termostato sin conexión, apoyadas en un refresco periódico en segundo plano. Se activan en Ajustes.
 - **Horario semanal** — vista de la programación completa: una barra de 24 h por día coloreada por zona, desplegable para ver a qué hora empieza cada franja y con qué temperatura. De solo lectura, por ahora.
 - **Editor de horarios** — cambia las temperaturas de las zonas de un horario manteniendo intactas las franjas horarias, con vista previa y confirmación antes de guardar.
+- **Gestión de horarios** — crea, duplica, renombra y borra horarios. El horario nuevo arranca con una semana tipo (confort de día, eco a media mañana, noche a partir de las 23:00). No deja borrar el activo, que es lo que Netatmo rechaza.
 - **Batería** — nivel de cada termostato y válvula con un indicador de barras, y aviso en el inicio cuando alguno se queda bajo.
 - **Consumo** — gráficas (Swift Charts) del histórico de temperatura y del tiempo de caldera encendida por habitación.
 - **Ocultar casas** — quita del inicio las casas que no te interesen.
+- **Español, inglés y francés** — con String Catalogs; el idioma sale del sistema.
+- **Accesibilidad** — VoiceOver en toda la app: los controles de temperatura son ajustables (se cambian deslizando arriba/abajo), el horario semanal se lee franja a franja y la temperatura grande escala con Dynamic Type.
 
 **Siri y Atajos**
 
-- **«Oye Siri, tengo frío en Calefacción Netatmo»** — sube el objetivo 1 °C durante dos horas sin abrir la app. Si tienes varias casas, el atajo pregunta cuál; con una sola, va directo.
+- **«Oye Siri, tengo frío en Calefacción Netatmo»** — sube el objetivo 1 °C durante dos horas sin abrir la app. Con varias casas, Siri pregunta cuál; también se puede nombrar directamente: «tengo frío en La Granja con Calefacción Netatmo».
 
-**Widgets**
+**Widgets y controles**
 
-- **Estado** — anillo con temperatura actual y objetivo, configurable por casa. Fondo blanco con la caldera apagada, degradado naranja cuando está calentando.
+- **Estado** — pantalla de inicio (anillo con temperatura actual y objetivo, fondo naranja cuando calienta) y pantalla de bloqueo en las tres familias: circular con aguja, rectangular con casa/actual/objetivo e inline junto al reloj.
 - **Tengo frío** — botón que sube el objetivo 1 °C sobre la temperatura actual durante 2 horas, sin abrir la app (App Intent ejecutado en el propio widget).
+- **Controles del Centro de Control** — botón «Tengo frío» e interruptor de modo ausente, ambos configurables por casa. Sirven también para el botón de acción y la pantalla de bloqueo.
+
+Con **dos casas** ningún widget, control o atajo elige casa por su cuenta: si no hay una configurada, piden que se elija en vez de acertar por sorteo. Con una sola casa, van directos.
 
 ## Requisitos
 
@@ -90,14 +96,18 @@ Calefaccion Netatmo/
 ├── Services/       EnergyService (API Energy), AlertsService, BackgroundRefresh
 ├── ViewModels/     Uno por pantalla (@Observable)
 ├── Views/          Login, HomeOverview, HomeDetail, ScheduleWeek, ScheduleEdit, Consumption, Settings
-└── Utilities/      Formatters
+├── Utilities/      Formatters
+├── Localizable.xcstrings      Textos de la app (es fuente, en/fr traducidos)
+└── AppShortcuts.xcstrings     Frases de Siri (tabla aparte, la exige AppIntents)
 
 CalefaccionWidget/
-├── CalefaccionWidget.swift    Widget de estado (anillo)
+├── CalefaccionWidget.swift    Widget de estado (inicio + pantalla de bloqueo)
 ├── WarmUpWidget.swift         Widget "Tengo frío"
+├── ControlWidgets.swift       Controles del Centro de Control (botón + interruptor)
 ├── WarmUpIntent.swift         App Intent que ejecuta la subida de 1 °C
-├── AppIntent.swift            Configuración (selector de casa)
-└── WidgetShared.swift         Cliente HTTP mínimo + acceso al Keychain compartido
+├── AppIntent.swift            Configuración (selector de casa) y resolución de casa
+├── WidgetShared.swift         Cliente HTTP mínimo + acceso al Keychain compartido
+└── Localizable.xcstrings      Textos del widget
 ```
 
 Patrón MVVM con el macro `@Observable` de Swift Observation. `AppModel` construye `AppSettings → AuthManager → EnergyService` y los inyecta en el entorno de SwiftUI.
@@ -106,7 +116,7 @@ La extensión de widgets **no** comparte código con la app: lleva su propio cli
 
 ### Endpoints de la API Energy usados
 
-`homesdata` · `homestatus` · `setroomthermpoint` · `setthermmode` · `switchhomeschedule` · `synchomeschedule` · `getroommeasure`
+`homesdata` · `homestatus` · `setroomthermpoint` · `setthermmode` · `switchhomeschedule` · `synchomeschedule` · `createnewhomeschedule` · `renamehomeschedule` · `deletehomeschedule` · `getroommeasure`
 
 ### Nota sobre el Info.plist
 
@@ -118,6 +128,19 @@ El target usa `GENERATE_INFOPLIST_FILE = YES`, pero `BGTaskSchedulerPermittedIde
 
 Netatmo describe la semana como una lista de cambios: cada entrada de la `timetable` lleva un `m_offset` en minutos desde el lunes a las 00:00 y la zona que pasa a regir hasta el siguiente cambio. `ScheduleWeek.days(from:)` expande esa lista a franjas por día, teniendo en cuenta que la semana es cíclica: lo que hay antes del primer cambio lo cubre la última zona de la lista. Es la base sobre la que se dibuja el horario semanal, y la que hará falta invertir cuando las horas se puedan editar.
 
+`createnewhomeschedule` pide el horario entero igual que `synchomeschedule`: al **duplicar** se copian las zonas y la `timetable` del original, y al **crear desde cero** se usa `ScheduleTemplate`, que trae las cuatro zonas que Netatmo exige (confort, noche, ausente, antihielo) más una eco, y una semana que empieza en el minuto 0 del lunes.
+
+### Nota sobre la localización
+
+El idioma fuente del proyecto es el **español** (`developmentRegion = es`): las claves de los catálogos son los propios literales en español. Los textos que no son literales de SwiftUI (nombres de modos, zonas, niveles de batería, errores de la API, cuerpos de las notificaciones) pasan por `String(localized:)` para que también entren en el catálogo.
+
+Los catálogos no se actualizan solos al compilar desde la línea de comandos; Xcode lo hace al construir desde el IDE. A mano:
+
+```bash
+xcrun xcstringstool sync "Calefaccion Netatmo/Localizable.xcstrings" \
+  --stringsdata <cada .stringsdata de la carpeta Objects-normal del target>
+```
+
 ## Seguridad
 
 - El `access_token` y el `refresh_token` se guardan en el Keychain (`kSecAttrAccessibleAfterFirstUnlock`), nunca en `UserDefaults`.
@@ -128,7 +151,9 @@ Aun así, ten en cuenta que **cualquier `client_secret` embebido en una app de c
 
 ## Estado
 
-Proyecto personal, versión 1.0. Funciona a diario contra dos casas reales. No está en la App Store.
+Proyecto personal. Funciona a diario contra dos casas reales. No está en la App Store.
+
+Lo siguiente en la lista: **editar las horas** de las franjas del horario (hoy la vista semanal es de solo lectura) y **modo ausente con fecha de vuelta**.
 
 ## Licencia
 

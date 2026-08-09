@@ -19,7 +19,7 @@ struct SettingsView: View {
     @State private var savedNotice = false
     @State private var alertsDenied = false
 
-    private let durationOptions: [(minutes: Int, label: String)] = [
+    private let durationOptions: [(minutes: Int, label: LocalizedStringKey)] = [
         (0, "Usar la de Netatmo"),
         (60, "1 hora"),
         (120, "2 horas"),

@@ -57,8 +57,8 @@ enum AlertsService {
             }
             guard shouldSend(key, notBefore: batteryReminder) else { continue }
             await send(key: key,
-                       title: "Batería baja",
-                       body: "\(battery.name) en \(home.name). Conviene cambiar las pilas.")
+                       title: String(localized: "Batería baja"),
+                       body: String(localized: "\(battery.name) en \(home.name). Conviene cambiar las pilas."))
         }
     }
 
@@ -74,8 +74,8 @@ enum AlertsService {
         // Sin plazo: mientras siga caído no se vuelve a insistir.
         guard shouldSend(key, notBefore: nil) else { return }
         await send(key: key,
-                   title: "Termostato sin conexión",
-                   body: "\(home.name) no responde. Revisa el termostato o la conexión.")
+                   title: String(localized: "Termostato sin conexión"),
+                   body: String(localized: "\(home.name) no responde. Revisa el termostato o la conexión."))
     }
 
     // MARK: - Envío

@@ -55,14 +55,35 @@ struct WSharedCache: Codable {
 // MARK: - Caché (App Group)
 
 enum WidgetCache {
+    private static var fileURL: URL? {
+        FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: WidgetConfig.appGroup)?
+            .appendingPathComponent("widget-cache.json")
+    }
+
     static func load() -> WSharedCache {
-        guard let url = FileManager.default
-                .containerURL(forSecurityApplicationGroupIdentifier: WidgetConfig.appGroup)?
-                .appendingPathComponent("widget-cache.json"),
-              let data = try? Data(contentsOf: url),
+        guard let fileURL,
+              let data = try? Data(contentsOf: fileURL),
               let cache = try? JSONDecoder().decode(WSharedCache.self, from: data)
         else { return .empty }
         return cache
+    }
+
+    /// Anota el modo recién aplicado para que el interruptor del Centro de Control
+    /// no se quede en el estado antiguo hasta el próximo refresco de la app.
+    static func updateMode(homeId: String, mode: String) {
+        var cache = load()
+        guard let previous = cache.snapshots[homeId] else { return }
+        cache.snapshots[homeId] = WHomeSnapshot(
+            homeId: previous.homeId,
+            currentTemp: previous.currentTemp,
+            targetTemp: previous.targetTemp,
+            boilerOn: previous.boilerOn,
+            mode: mode,
+            updatedAt: previous.updatedAt
+        )
+        guard let fileURL, let data = try? JSONEncoder().encode(cache) else { return }
+        try? data.write(to: fileURL, options: .atomic)
     }
 }
 
@@ -117,6 +138,7 @@ struct WLiveStatus {
     let currentTemp: Double?
     let targetTemp: Double?
     let boilerOn: Bool
+    let mode: String?
 }
 
 struct WidgetNetatmoClient {
@@ -179,7 +201,8 @@ struct WidgetNetatmoClient {
         let boilerOn = (decoded.body.home.modules ?? []).contains { $0.boilerStatus == true }
         return WLiveStatus(currentTemp: room?.thermMeasuredTemperature,
                            targetTemp: room?.thermSetpointTemperature,
-                           boilerOn: boilerOn)
+                           boilerOn: boilerOn,
+                           mode: decoded.body.home.thermMode)
     }
 
     // Fija temperatura manual con fin (endtime epoch en segundos).
@@ -196,6 +219,21 @@ struct WidgetNetatmoClient {
             "temp": String(format: "%.1f", temp),
             "endtime": String(Int(endtime)),
         ]).data(using: .utf8)
+
+        let (_, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw WError.http((response as? HTTPURLResponse)?.statusCode ?? -1)
+        }
+    }
+
+    // Modo global de la casa: "schedule" (programación), "away" (ausente) o "hg" (antihielo).
+    func setThermMode(homeId: String, mode: String) async throws {
+        let token = try await validToken()
+        var request = URLRequest(url: WidgetConfig.apiBase.appendingPathComponent("api/setthermmode"))
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/x-www-form-urlencoded;charset=UTF-8", forHTTPHeaderField: "Content-Type")
+        request.httpBody = Self.formEncode(["home_id": homeId, "mode": mode]).data(using: .utf8)
 
         let (_, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
@@ -226,6 +264,7 @@ private struct WStatusBody: Decodable { let home: WStatusHome }
 private struct WStatusHome: Decodable {
     let rooms: [WStatusRoom]?
     let modules: [WStatusModule]?
+    let thermMode: String?
 }
 private struct WStatusRoom: Decodable {
     let id: String

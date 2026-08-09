@@ -34,7 +34,7 @@ struct ScheduleDay: Identifiable, Hashable {
     /// Nombre del día en el idioma del sistema ("lunes", "martes"…).
     var name: String {
         let symbols = DateFormatter().standaloneWeekdaySymbols ?? []
-        guard symbols.count == 7 else { return "Día \(index + 1)" }
+        guard symbols.count == 7 else { return String(localized: "Día \(index + 1)") }
         // `standaloneWeekdaySymbols` empieza en domingo; los offsets empiezan en lunes.
         return symbols[(index + 1) % 7].capitalized
     }

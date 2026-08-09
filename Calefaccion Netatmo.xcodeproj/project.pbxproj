@@ -198,10 +198,12 @@
 				};
 			};
 			buildConfigurationList = 156746EE3004304C002F0E92 /* Build configuration list for PBXProject "Calefaccion Netatmo" */;
-			developmentRegion = en;
+			developmentRegion = es;
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				es,
 				en,
+				fr,
 				Base,
 			);
 			mainGroup = 156746EA3004304C002F0E92;

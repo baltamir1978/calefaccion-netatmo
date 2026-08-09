@@ -32,6 +32,7 @@ struct HomeOverviewView: View {
                         } label: {
                             Image(systemName: "gearshape")
                         }
+                        .accessibilityLabel(Text("Ajustes"))
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         Menu {
@@ -48,6 +49,7 @@ struct HomeOverviewView: View {
                         } label: {
                             Image(systemName: "person.crop.circle")
                         }
+                        .accessibilityLabel(Text("Cuenta"))
                     }
                 }
                 .navigationDestination(for: Home.self) { home in
@@ -123,6 +125,10 @@ private struct HomeCard: View {
     @Environment(EnergyService.self) private var energy
     @Environment(\.colorScheme) private var colorScheme
 
+    /// La temperatura grande crece con el tamaño de texto del sistema en vez de
+    /// quedarse clavada en 46 pt.
+    @ScaledMetric(relativeTo: .largeTitle) private var currentTempSize: CGFloat = 46
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
@@ -138,6 +144,8 @@ private struct HomeCard: View {
             lowBatteryWarning
             footer
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Text(home.name))
         .padding(16)
         // En modo oscuro `.background` y `systemGroupedBackground` son ambos negro:
         // la tarjeta se fundía con la pantalla. El nivel «secondary» sí contrasta
@@ -171,13 +179,14 @@ private struct HomeCard: View {
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
             .background(on ? Color.orange : Color(.tertiarySystemGroupedBackground), in: Capsule())
+            .accessibilityLabel(on ? Text("Caldera encendida") : Text("Caldera apagada"))
     }
 
     // Temperatura actual grande.
     private var currentBlock: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(Formatters.temperature(model.currentTemperature(for: home)))
-                .font(.system(size: 46, weight: .bold, design: .rounded))
+                .font(.system(size: currentTempSize, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(model.isBoilerOn(for: home) ? .orange : .primary)
             Text("Temperatura actual")
@@ -189,9 +198,19 @@ private struct HomeCard: View {
                     .foregroundStyle(.red)
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Temperatura actual"))
+        .accessibilityValue(temperatureValueDescription)
+    }
+
+    private var temperatureValueDescription: Text {
+        let value = Text("\(Formatters.temperatureValue(model.currentTemperature(for: home))) grados")
+        guard !model.isReachable(for: home) else { return value }
+        return Text("\(value). Sin conexión")
     }
 
     // Control vertical (+ / objetivo / –) al estilo del termostato Netatmo.
+    // Para VoiceOver es un único control ajustable con gestos arriba/abajo.
     private var thermostatControl: some View {
         VStack(spacing: 6) {
             stepButton(systemImage: "plus", delta: model.step)
@@ -210,6 +229,20 @@ private struct HomeCard: View {
         .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.orange.opacity(0.5), lineWidth: 1.5))
         .disabled(!model.isReachable(for: home))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Temperatura objetivo"))
+        .accessibilityValue(Text("\(Formatters.temperatureValue(model.targetTemperature(for: home))) grados"))
+        .accessibilityHint(Text("Desliza arriba o abajo para cambiarla"))
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment:
+                model.adjustTarget(by: model.step, home: home, using: energy)
+            case .decrement:
+                model.adjustTarget(by: -model.step, home: home, using: energy)
+            @unknown default:
+                break
+            }
+        }
     }
 
     private func stepButton(systemImage: String, delta: Double) -> some View {
@@ -223,6 +256,7 @@ private struct HomeCard: View {
         }
         .buttonStyle(.plain)
         .foregroundStyle(.orange)
+        .accessibilityLabel(delta > 0 ? Text("Subir temperatura") : Text("Bajar temperatura"))
     }
 
     // Modo del hogar.
@@ -255,6 +289,7 @@ private struct HomeCard: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                .accessibilityElement(children: .combine)
                 Spacer(minLength: 0)
                 Button("Volver al horario") {
                     Task { await model.resumeSchedule(home: home, using: energy) }
@@ -287,6 +322,7 @@ private struct HomeCard: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
             .background(Color.red.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+            .accessibilityElement(children: .combine)
         }
     }
 
@@ -294,8 +330,12 @@ private struct HomeCard: View {
     private var footer: some View {
         HStack(spacing: 8) {
             if let schedule = model.activeScheduleName(for: home) {
-                Image(systemName: "calendar")
-                Text(schedule).lineLimit(1)
+                HStack(spacing: 8) {
+                    Image(systemName: "calendar")
+                    Text(schedule).lineLimit(1)
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text("Horario activo: \(schedule)"))
             }
             Spacer()
             NavigationLink(value: home) {
@@ -305,6 +345,7 @@ private struct HomeCard: View {
                 }
                 .foregroundStyle(.orange)
             }
+            .accessibilityLabel(Text("Programación y uso de \(home.name)"))
         }
         .font(.footnote)
         .foregroundStyle(.secondary)
